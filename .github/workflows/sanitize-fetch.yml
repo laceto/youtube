@@ -1,0 +1,41 @@
+name: Sanitize tracklist - fetch batch results
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Retry every 2 hours; OpenAI batch jobs may take up to 24h to complete.
+    - cron: "0 */2 * * *"
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Fetch sanitize batch results
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/fetch_sanitize_batch.py
+
+      - name: Commit sanitized tracklist
+        run: |
+          if [ ! -f data/Richie_Hawtin_tracklists_sanitized.xlsx ]; then
+            echo "No sanitized output yet (batch job still pending). Nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/Richie_Hawtin_tracklists_sanitized.xlsx
+          if git diff --cached --quiet; then
+            echo "Sanitized output unchanged. Nothing to commit."
+          else
+            git commit -m "chore: update sanitized richie hawtin tracklist"
+            git push
+          fi
