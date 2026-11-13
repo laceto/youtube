@@ -1,10 +1,8 @@
 name: Sanitize tracklist - fetch batch results
 
 on:
+  # Disabled: schedule removed; run manually only.
   workflow_dispatch:
-  schedule:
-    # Retry every 2 hours; OpenAI batch jobs may take up to 24h to complete.
-    - cron: "0 */2 * * *"
 
 jobs:
   fetch:
