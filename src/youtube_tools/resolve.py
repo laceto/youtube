@@ -25,3 +25,18 @@ def resolve_matches(
         except requests.HTTPError as exc:
             return results, str(exc)
     return results, None
+
+
+def cap_searches(
+    queries: list[str],
+    cache: dict[str, dict[str, str | None]],
+    max_searches: int | None,
+) -> list[str]:
+    """Keep every cached query plus only the first `max_searches` uncached ones (all if None).
+
+    Lets a run stay inside a daily quota and resume tomorrow where it stopped.
+    """
+    if max_searches is None:
+        return list(queries)
+    allowed = set(list(dict.fromkeys(q for q in queries if q not in cache))[:max_searches])
+    return [q for q in queries if q in cache or q in allowed]

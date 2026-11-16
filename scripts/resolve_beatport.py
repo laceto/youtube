@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from youtube_tools import build_search_query, read_beatport_playlist, search_video
-from youtube_tools.resolve import resolve_matches
+from youtube_tools.resolve import cap_searches, resolve_matches
 
 CACHE_PATH = "data/beatport/youtube_matches.xlsx"
 UNITS_PER_SEARCH = 100
@@ -14,6 +14,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Add YouTube title/URL to a parsed Beatport dump.")
     parser.add_argument("input", help="e.g. data/beatport/info_beatport_20261009.txt")
     parser.add_argument("--limit", type=int, default=None, help="only resolve the first N tracks")
+    parser.add_argument("--max-searches", type=int, default=None,
+                        help="search at most N uncached tracks (100 quota units each); the rest stay for the next run")
     parser.add_argument("--dry-run", action="store_true", help="only count the searches needed")
     return parser.parse_args()
 
@@ -27,6 +29,11 @@ def load_cache(path: str) -> dict[str, dict[str, str | None]]:
         for _, row in df.iterrows()
         if pd.notna(row["youtube_url"])
     }
+
+
+def save_cache(path: str, cache: dict[str, dict[str, str | None]]) -> None:
+    rows = [{"query": q, "youtube_title": v["title"], "youtube_url": v["url"]} for q, v in cache.items()]
+    pd.DataFrame(rows).to_excel(path, index=False)
 
 
 def main() -> None:
@@ -43,7 +50,11 @@ def main() -> None:
     if args.dry_run:
         return
 
-    results, error = resolve_matches(tracks["query"].tolist(), cache, search_video)
+    to_search = cap_searches(tracks["query"].tolist(), cache, args.max_searches)
+    print(f"Searching {sum(q not in cache for q in to_search)} (cap: {args.max_searches})")
+    results, error = resolve_matches(to_search, cache, search_video)
+    cache.update({q: v for q, v in results.items() if v and v.get("url")})
+    save_cache(CACHE_PATH, cache)
     tracks["youtube_title"] = tracks["query"].map(lambda q: (results.get(q) or {}).get("title"))
     tracks["youtube_url"] = tracks["query"].map(lambda q: (results.get(q) or {}).get("url"))
 

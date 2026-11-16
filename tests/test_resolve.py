@@ -36,3 +36,12 @@ def test_resolve_matches_records_none_when_no_match():
 
     assert error is None
     assert results == {"a": None}
+
+
+def test_cap_searches_keeps_cached_and_first_n_uncached():
+    from youtube_tools.resolve import cap_searches
+
+    cache = {"b": {"title": "t", "url": "u"}}
+    assert cap_searches(["a", "b", "c", "d"], cache, 2) == ["a", "b", "c"]
+    assert cap_searches(["a", "b", "c", "d"], cache, None) == ["a", "b", "c", "d"]
+    assert cap_searches(["a", "b"], cache, 0) == ["b"]

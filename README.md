@@ -42,6 +42,24 @@ pytest
    100 units — so ~100 lookups/day on the free quota. Request a quota increase in Cloud Console
    if you need more.
 
+## Resolving Beatport dumps to YouTube links
+
+`scripts/resolve_beatport.py <info_beatport_YYYYMMDD.txt>` parses a pasted Beatport dump, builds an
+`Artists - Title (Mix)` query per track, and adds the top YouTube match (`youtube_title`,
+`youtube_url`), writing `<input>_youtube.xlsx`. Options: `--dry-run` (count searches only),
+`--limit N` (first N tracks), `--max-searches N` (search at most N uncached tracks, so a run
+stays inside the daily quota).
+
+Matches are cached in `data/beatport/youtube_matches.xlsx` (written after every run, also on a
+quota error), so re-runs only pay for uncached tracks. At 100 units per search the free quota
+covers ~100 searches/day; larger dumps resume the next day.
+
+Workflow `resolve-beatport.yml` automates that: daily at 09:00 UTC (after the quota reset) and on
+manual dispatch (input: dump path), it runs with `--max-searches 100` and commits the results.
+Once every track is cached the run is a no-op. The dump path defaults to
+`data/beatport/info_beatport_20261116.txt` - edit `INPUT` in the workflow for a new dump.
+Requires the `YOUTUBE_API_KEY` repo secret.
+
 ## Sanitizing the Richie Hawtin tracklist (OpenAI Batch API)
 
 `data/Richie_Hawtin_tracklists.xlsx` has a messy `title` column (e.g.
